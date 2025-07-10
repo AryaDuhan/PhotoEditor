@@ -1,10 +1,8 @@
-
 import tkinter
 import customtkinter as ctk
 import numpy as np
 import os
-import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageTk
 import tkinter.filedialog
 import cv2
 import sys
@@ -13,14 +11,23 @@ current_image_pil = None
 current_image_array = None
 original_file_name = None
 
-history_stack=[]
-redo_stack=[]
+image_display_label = None
 
-original_loaded_image_pil=None
+history_stack = []
+redo_stack = []
+
+original_loaded_image_pil = None
 
 
+def update_Image_preview(image_pil):
+    global image_display_label
 
+    image_resized = image_pil.copy()
+    image_resized.thumbnail((650, 450))
 
+    tk_image = ImageTk.PhotoImage(image_resized)
+    image_display_label.configure(image=tk_image)
+    image_display_label.image = tk_image
 
 def push_history():
     if current_image_pil is not None:
@@ -32,13 +39,14 @@ def undo_action():
     global current_image_pil, current_image_array
     if history_stack:
         redo_stack.append(current_image_pil.copy())
-        current_image_pil=history_stack.pop()
-        current_image_array=np.array(current_image_pil)
-        show_image(current_image_array, title="Undo", cmap='gray' if current_image_array.ndim==2 else None)
+        current_image_pil = history_stack.pop()
+        current_image_array = np.array(current_image_pil)
+        update_Image_preview(current_image_pil)
         print("Undo Applied")
         update_revert_state()
     else:
         print("Nothing to Undo")
+
 
 def redo_action():
     global current_image_pil, current_image_array
@@ -46,7 +54,7 @@ def redo_action():
         history_stack.append(current_image_pil.copy())
         current_image_pil = redo_stack.pop()
         current_image_array = np.array(current_image_pil)
-        show_image(current_image_array, title="Redo", cmap="gray" if current_image_array.ndim == 2 else None)
+        update_Image_preview(current_image_pil)
         print("Redo applied.")
         update_revert_state()
     else:
@@ -55,40 +63,28 @@ def redo_action():
 
 #text for GUI
 class TextGenerator(object):
-    def __init__(self,widget):
-        self.widget=widget
-    
-    def write(self,str_to_write):
+    def __init__(self, widget):
+        self.widget = widget
+
+    def write(self, str_to_write):
         self.widget.insert(tkinter.END, str_to_write)
         self.widget.see(tkinter.END)
-    
+
     def flush(self):
         pass
 
+
 #grayscale photo
 def colortogray(photo_array):
-    if photo_array.ndim == 3 and photo_array.shape[2] >= 3: #only if its a color photo with at least 3 channels
-        # Using your exact colortogray as provided
+    if photo_array.ndim == 3 and photo_array.shape[2] >= 3:
         return np.dot(photo_array[..., :3], [0.2989, 0.5870, 0.1140])
     else:
         print("Image is grayscale or has fewer than 3 channels. Skipping grayscale")
         return photo_array
 
+
 #blurred photo
 def blur_photo(photo_array, kernel_size):
-    # kernel = np.ones((kernel_size, kernel_size)) / (kernel_size * kernel_size)
-    # h, w = photo_array.shape[:2]
-    # padding = kernel_size // 2
-    # padded_image = np.pad(photo_array, [(padding, padding), (padding, padding), (0, 0)], mode='constant', constant_values=0)
-    # blurred_photo = np.zeros_like(photo_array)
-
-    # for i in range(h):
-    #     for j in range(w):
-    #         for c in range(3):
-    #             blurred_photo[i, j, c] = np.sum(padded_image[i:i+kernel_size, j:j+kernel_size, c] * kernel)
-    
-    # return blurred_photo.astype(np.uint8)
-
     if kernel_size <= 0:
         print("Blur strength must be a positive integer. Using 5 as default.")
         kernel_size = 5
@@ -100,25 +96,37 @@ def blur_photo(photo_array, kernel_size):
 
 #revert function
 def update_revert_state():
-    if original_loaded_image_pil is not None:
-        revert_button.configure(state="normal")
+    #undo
+    if history_stack:
+        undo_button.configure(state="normal")
+    else:
+        undo_button.configure(state="disabled")
+
+    #redo
+    if redo_stack:
+        redo_button.configure(state="normal")
+    else:
+        redo_button.configure(state="disabled")
+
+    #revert
+    if original_loaded_image_pil is not None and current_image_pil is not None:
+        if not np.array_equal(np.array(original_loaded_image_pil), np.array(current_image_pil)):
+            revert_button.configure(state="normal")
+        else:
+            revert_button.configure(state="disabled")
     else:
         revert_button.configure(state="disabled")
-
 
 def revert_action():
     global current_image_pil, current_image_array
     if original_loaded_image_pil is not None:
-        current_image_pil=original_loaded_image_pil.copy()
-        current_image_array=np.array(current_image_pil)
-
-        cmap="gray" if current_image_array.ndim==2 or current_image_pil.mode=="L" else None
-        show_image(current_image_array, title="Reverted to Original", cmap= cmap)
-        print ("Reverted to Original")
+        current_image_pil = original_loaded_image_pil.copy()
+        current_image_array = np.array(current_image_pil)
+        update_Image_preview(current_image_pil)
+        print("Reverted to Original")
         update_revert_state()
-    else: 
+    else:
         print("No original image loaded to revert to.")
-
 
 
 def browse_file():
@@ -129,7 +137,7 @@ def browse_file():
         try:
             photo_pil = Image.open(tempfile.name).convert('RGB')
 
-            original_loaded_image_pil=photo_pil.copy()
+            original_loaded_image_pil = photo_pil.copy()
             current_image_pil = photo_pil
             current_image_array = np.array(photo_pil)
 
@@ -138,31 +146,19 @@ def browse_file():
             history_frame.pack(pady=10, anchor="n")
             save_button.pack(pady=10, anchor="n")
 
-            
-            print (f"Loaded Image: {original_file_name}")
-            show_image(current_image_array, title="Original Image", cmap=None)
+            print(f"Loaded Image: {original_file_name}")
+            update_Image_preview(current_image_pil)
             update_revert_state()
         except Exception as e:
-            print(f"Error Opening Image:{e}")
+            print(f"Error Opening Image: {e}")
             current_image_pil = None
             current_image_array = None
             original_file_name = None
-            original_loaded_image_pil=None
+            original_loaded_image_pil = None
             update_revert_state()
-
     else:
-        print ("No file Selected")
+        print("No file Selected")
 
-def on_close(event):
-    pass
-
-def show_image(image_array, title="Photo Editor", cmap=None):
-    plt.imshow(image_array, cmap=cmap)
-    plt.axis('off')
-    fig = plt.gcf()
-    fig.canvas.manager.set_window_title(title)
-    fig.canvas.mpl_connect("close_event", on_close)
-    plt.show()
 
 def rotate_left():
     global current_image_pil, current_image_array
@@ -171,18 +167,12 @@ def rotate_left():
         rotated_image_pil = current_image_pil.rotate(90, expand=True)
         current_image_pil = rotated_image_pil
         current_image_array = np.array(rotated_image_pil)
-
-        # check dimension to decide cmap
-        if current_image_array.ndim == 2:
-            show_image(current_image_array, title="Rotated Left", cmap='gray')
-            print("Image rotated left.")
-        else:
-            show_image(current_image_array, title="Rotated Left", cmap=None)
-            print("Image rotated left.")
-        
+        update_Image_preview(current_image_pil)
+        print("Image rotated left.")
         update_revert_state()
     else:
         print("No image loaded to rotate.")
+
 
 def rotate_right():
     global current_image_pil, current_image_array
@@ -191,19 +181,12 @@ def rotate_right():
         rotated_image_pil = current_image_pil.rotate(-90, expand=True)
         current_image_pil = rotated_image_pil
         current_image_array = np.array(rotated_image_pil)
-
-
-        if current_image_array.ndim == 2:
-            show_image(current_image_array, title="Rotated Right", cmap='gray')
-            print("Image rotated right.")
-        else:
-            show_image(current_image_array, title="Rotated Right", cmap=None)
-            print("Image rotated right.")
-        
+        update_Image_preview(current_image_pil)
+        print("Image rotated right.")
         update_revert_state()
-        
     else:
         print("No image loaded to rotate.")
+
 
 def apply_grayscale():
     global current_image_pil, current_image_array
@@ -211,53 +194,44 @@ def apply_grayscale():
         push_history()
         processed_array = colortogray(current_image_array)
 
-        # making sure that image is correctly grayscale
-        # unit8 is needed for Image.fromarray to handle it correctly and displayed with cmap="gray" for matplotlib
         if processed_array.ndim == 2:
             current_image_pil = Image.fromarray(processed_array.astype(np.uint8), mode="L")
         else:
             current_image_pil = Image.fromarray(processed_array.astype(np.uint8))
 
         current_image_array = processed_array.astype(np.uint8)
-        show_image(current_image_array, title="Grayscale Image", cmap='gray')
+        update_Image_preview(current_image_pil)
         print("Grayscale filter applied.")
         update_revert_state()
-
     else:
         print("No image to grayscale.")
+
 
 def apply_blur():
     global current_image_pil, current_image_array
     if current_image_array is not None:
-        blur_dialog = ctk.CTkInputDialog(text="Enter Blur Strength (3-15 for a good blur):", title="Blur Strength")
-
         try:
-            blur_strength_str = blur_dialog.get_input()
-            if blur_strength_str is None:
-                print ("Blur Cancelled")
-                return
-            blur_strength = int(blur_strength_str)
+            blur_strength = int(blur_strength_entry.get())
         except ValueError:
             print("Invalid blur strength. Using default 5")
             blur_strength = 5
-        
-        print("Applied Blur")
+
+        if blur_strength <= 0:
+            print("Blur strength must be positive. Using 5.")
+            blur_strength = 5
+
+        print(f"Applied Blur with strength: {blur_strength}")
         push_history()
         processed_array = blur_photo(current_image_array, blur_strength)
 
-        #convert processed_array to unit8
         display_array = processed_array.astype(np.uint8)
         current_image_pil = Image.fromarray(display_array)
-        current_image_array = display_array 
-
-        if current_image_array.ndim == 2:
-            show_image(current_image_array, title=f"Blurred Image (Strength: {blur_strength})", cmap='gray')
-        else:
-            show_image(current_image_array, title=f"Blurred Image (Strength: {blur_strength})", cmap=None)
-        
+        current_image_array = display_array
+        update_Image_preview(current_image_pil)
         update_revert_state()
     else:
         print("No image to apply blur.")
+
 
 def save_file():
     global current_image_pil, original_file_name
@@ -273,32 +247,52 @@ def save_file():
                 current_image_pil.save(save_path)
                 print(f"Image saved to: {save_path}")
             except Exception as e:
-                print(f"error saving file: {e}")
+                print(f"Error saving file: {e}")
     else:
         print("No Image to save")
 
-#GUI setup
+
+#GUI
+app = ctk.CTk()
+app.title("Photo Editor")
+app.geometry("1000x700")
+
+
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-app = ctk.CTk()
-app.title("Photo Editor")
-app.geometry("720x480+1000+50")
 
-custom_font1 = ctk.CTkFont(family='KG Blank Space Sketch', size=20)
-custom_font2 = ctk.CTkFont(family='KG Blank Space Sketch', size=10)
-
-title = ctk.CTkLabel(app, text="Simple Photo Editor", font=custom_font1)
-title.pack(pady=10)
+main_frame = ctk.CTkFrame(app)
+main_frame.pack(fill="both", expand=True)
 
 
+tools_frame = ctk.CTkFrame(main_frame, width=320)
+tools_frame.pack(side="left", fill="y", padx=10, pady=10)
+tools_frame.pack_propagate(False)
 
-browse_button = ctk.CTkButton(app, text="Browse Image", command=browse_file, font=custom_font2)
+
+
+preview_frame = ctk.CTkFrame(main_frame, width=700, height=500)
+preview_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+
+custom_font1 = ctk.CTkFont(family='Segoe UI Semibold', size=25, weight="bold")
+custom_font2 = ctk.CTkFont(family='Segoe UI', size=15,weight="bold")
+console_font = ctk.CTkFont(family='Consolas', size=11)
+
+
+#tittle
+title = ctk.CTkLabel(tools_frame, text="Simple Photo Editor", font=custom_font1)
+title.pack(pady=5)
+
+
+#browse files
+browse_button = ctk.CTkButton(tools_frame, text="Browse Image", command=browse_file, font=custom_font2)
 browse_button.pack(pady=10)
 
 
-
-rotate_frame = ctk.CTkFrame(app)
+#frame for rotate button
+rotate_frame = ctk.CTkFrame(tools_frame)
 rotate_frame.pack_forget()
 
 rotate_left_button = ctk.CTkButton(rotate_frame, text="Rotate Left", command=rotate_left, font=custom_font2)
@@ -309,47 +303,47 @@ rotate_right_button.pack(side="left", padx=5)
 
 
 
-filters_frame = ctk.CTkFrame(app)
+#frame for filter buttons
+filters_frame = ctk.CTkFrame(tools_frame)
 filters_frame.pack_forget()
 
 grayscale_button = ctk.CTkButton(filters_frame, text="Grayscale", command=apply_grayscale, font=custom_font2)
-grayscale_button.pack(side="left",padx=5)
+grayscale_button.pack(side="top", pady=5)
 
-blur_button = ctk.CTkButton(filters_frame, text="Apply Blur", command=apply_blur, font=custom_font2)
-blur_button.pack(side="left", padx=5)
+blur_controls = ctk.CTkFrame(filters_frame)
+blur_controls.pack(side="top", pady=5)
+
+blur_strength_entry = ctk.CTkEntry(blur_controls, width=60, placeholder_text="Eg: 3-15")
+blur_strength_entry.pack(side="left", padx=(0, 5))
+
+blur_button = ctk.CTkButton(blur_controls, text="Apply Blur", command=apply_blur, font=custom_font2)
+blur_button.pack(side="left")
 
 
-
-save_button = ctk.CTkButton(app, text="Save", command=save_file, font=custom_font2)
-save_button.pack_forget()
-
-
-
-history_frame = ctk.CTkFrame(app)
+#for history buttons
+history_frame = ctk.CTkFrame(tools_frame)
 history_frame.pack_forget()
-
 
 undo_redo_frame = ctk.CTkFrame(history_frame)
 undo_redo_frame.pack(pady=5)
 
-
-
-undo_button = ctk.CTkButton(undo_redo_frame, text="Undo", command=undo_action, font=custom_font2, fg_color="gray", hover_color="darkgray")
+undo_button = ctk.CTkButton(undo_redo_frame, text="Undo", command=undo_action, font=custom_font2, fg_color="gray", hover_color="darkgray", state="disabled")
 undo_button.pack(side="left", padx=5)
 
-redo_button = ctk.CTkButton(undo_redo_frame, text="Redo", command=redo_action, font=custom_font2, fg_color="gray", hover_color="darkgray")
+redo_button = ctk.CTkButton(undo_redo_frame, text="Redo", command=redo_action, font=custom_font2, fg_color="gray", hover_color="darkgray", state="disabled")
 redo_button.pack(side="left", padx=5)
 
+save_button = ctk.CTkButton(tools_frame, text="Save", command=save_file, font=custom_font2)
+save_button.pack(pady=10)
 
-
+image_display_label = ctk.CTkLabel(preview_frame, text="")
+image_display_label.pack(expand=True)
 
 revert_button = ctk.CTkButton(history_frame, text="Revert to Original", command=revert_action, font=custom_font2, fg_color="#c0392b", hover_color="#a93226", state="disabled")
 revert_button.pack(pady=5)
 
-
-output_textbox = ctk.CTkTextbox(app, height=100, width=app.winfo_width() - 40, font=custom_font2)
-output_textbox.pack(pady=10, padx=20, fill="x", expand=True)
-
+output_textbox = ctk.CTkTextbox(app, height=80, font=console_font)
+output_textbox.pack(pady=(0, 10), padx=20, fill="x")
 
 sys.stdout = TextGenerator(output_textbox)
 
