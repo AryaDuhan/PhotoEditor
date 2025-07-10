@@ -2,7 +2,7 @@ import tkinter
 import customtkinter as ctk
 import numpy as np
 import os
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageEnhance
 import tkinter.filedialog
 import cv2
 import sys
@@ -25,8 +25,8 @@ def update_Image_preview(image_pil):
     image_resized = image_pil.copy()
     image_resized.thumbnail((650, 450))
 
-    tk_image = ImageTk.PhotoImage(image_resized)
-    image_display_label.configure(image=tk_image)
+    tk_image = ctk.CTkImage(light_image=image_resized, size=image_resized.size)
+    image_display_label.configure(image=tk_image, text="")
     image_display_label.image = tk_image
 
 def push_history():
@@ -67,8 +67,11 @@ class TextGenerator(object):
         self.widget = widget
 
     def write(self, str_to_write):
+        self.widget.configure(state="normal") 
         self.widget.insert(tkinter.END, str_to_write)
         self.widget.see(tkinter.END)
+        self.widget.configure(state="disabled")
+
 
     def flush(self):
         pass
@@ -145,6 +148,8 @@ def browse_file():
             filters_frame.pack(pady=10, anchor="n")
             history_frame.pack(pady=10, anchor="n")
             save_button.pack(pady=10, anchor="n")
+            adjustment_frame.pack(pady=10, anchor="n")
+
 
             print(f"Loaded Image: {original_file_name}")
             update_Image_preview(current_image_pil)
@@ -233,6 +238,66 @@ def apply_blur():
         print("No image to apply blur.")
 
 
+def apply_adjustments():
+    global current_image_pil, current_image_array
+
+    if original_loaded_image_pil is not None:
+        base_image = original_loaded_image_pil.copy()
+
+        base_image = ImageEnhance.Brightness(base_image).enhance(brightness_slider.get())
+        base_image = ImageEnhance.Sharpness(base_image).enhance(sharpness_slider.get())
+        base_image = ImageEnhance.Contrast(base_image).enhance(contrast_slider.get())
+        base_image = ImageEnhance.Color(base_image).enhance(saturation_slider.get())
+
+        current_image_pil = base_image
+        current_image_array = np.array(base_image)
+
+        update_Image_preview(current_image_pil)
+        update_revert_state()
+    else:
+        print("No image loaded to adjust.")
+
+
+def create_slider_row(parent, label_text, min_val, max_val, default):
+    row = ctk.CTkFrame(parent)
+    row.pack(pady=2, fill="x")
+
+    label = ctk.CTkLabel(row, text=label_text, font=custom_font2, width=100)
+    label.pack(side="left", padx=(0, 5))
+
+    slider = ctk.CTkSlider(row, from_=min_val, to=max_val, number_of_steps=20, width=100)
+    slider.set(default)
+    slider.pack(side="left")
+
+    value_label = ctk.CTkLabel(row, text=str(default), font=custom_font2, width=30)
+    value_label.pack(side="left")
+
+    def update_label(value):
+        value_label.configure(text=f"{float(value):.2f}")
+        apply_adjustments()
+
+    slider.configure(command=update_label)
+
+    return slider, update_label
+
+
+
+def reset_adjustments():
+    push_history()
+
+    brightness_slider.set(1.0)
+    sharpness_slider.set(1.0)
+    contrast_slider.set(1.0)
+    saturation_slider.set(1.0)
+
+    update_brightness_label(1.0)
+    update_sharpness_label(1.0)  
+    update_contrast_label(1.0)
+    update_saturation_label(1.0)
+
+    apply_adjustments()
+    print("Adjustments reset to default.")
+
 def save_file():
     global current_image_pil, original_file_name
     if current_image_pil and original_file_name:
@@ -306,6 +371,20 @@ rotate_right_button.pack(side="left", padx=5)
 #frame for filter buttons
 filters_frame = ctk.CTkFrame(tools_frame)
 filters_frame.pack_forget()
+
+# Frame for adjustment sliders
+adjustment_frame = ctk.CTkFrame(tools_frame)
+adjustment_frame.pack_forget()
+
+
+brightness_slider, update_brightness_label = create_slider_row(adjustment_frame, "Brightness", 0.0, 3.0, 1.0)
+sharpness_slider, update_sharpness_label = create_slider_row(adjustment_frame, "Sharpness", 0.0, 3.0, 1.0)
+contrast_slider, update_contrast_label   = create_slider_row(adjustment_frame, "Contrast", 0.0, 3.0, 1.0)
+saturation_slider, update_saturation_label = create_slider_row(adjustment_frame, "Saturation", 0.0, 3.0, 1.0)
+
+
+reset_button = ctk.CTkButton(adjustment_frame, text="Reset to Defaults", command=reset_adjustments, font=custom_font2)
+reset_button.pack(pady=5)
 
 grayscale_button = ctk.CTkButton(filters_frame, text="Grayscale", command=apply_grayscale, font=custom_font2)
 grayscale_button.pack(side="top", pady=5)
