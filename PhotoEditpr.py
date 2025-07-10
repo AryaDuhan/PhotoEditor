@@ -245,6 +245,19 @@ def apply_adjustments():
         base_image = original_loaded_image_pil.copy()
 
         base_image = ImageEnhance.Brightness(base_image).enhance(brightness_slider.get())
+
+
+        temp_factor = temperature_slider.get()
+        #convert to numpy to adjust rgb
+        temp_array = np.array(base_image).astype(np.float32)
+        #adjust red and blue
+        temp_array[..., 0] *= temp_factor
+        temp_array[..., 2] *= (2.0 - temp_factor)
+        temp_array = np.clip(temp_array, 0, 255).astype(np.uint8)
+        base_image = Image.fromarray(temp_array)
+
+
+
         base_image = ImageEnhance.Sharpness(base_image).enhance(sharpness_slider.get())
         base_image = ImageEnhance.Contrast(base_image).enhance(contrast_slider.get())
         base_image = ImageEnhance.Color(base_image).enhance(saturation_slider.get())
@@ -286,14 +299,20 @@ def reset_adjustments():
     push_history()
 
     brightness_slider.set(1.0)
+    temperature_slider.set(1.0)
     sharpness_slider.set(1.0)
     contrast_slider.set(1.0)
     saturation_slider.set(1.0)
 
+
+
     update_brightness_label(1.0)
+    update_temperature_label(1.0)
     update_sharpness_label(1.0)  
     update_contrast_label(1.0)
     update_saturation_label(1.0)
+ 
+
 
     apply_adjustments()
     print("Adjustments reset to default.")
@@ -320,7 +339,7 @@ def save_file():
 #GUI
 app = ctk.CTk()
 app.title("Photo Editor")
-app.geometry("1000x700")
+app.geometry("1000x720")
 
 
 ctk.set_appearance_mode("dark")
@@ -378,6 +397,7 @@ adjustment_frame.pack_forget()
 
 
 brightness_slider, update_brightness_label = create_slider_row(adjustment_frame, "Brightness", 0.0, 3.0, 1.0)
+temperature_slider, update_temperature_label = create_slider_row(adjustment_frame, "Temperature", 0.5, 1.5, 1.0)
 sharpness_slider, update_sharpness_label = create_slider_row(adjustment_frame, "Sharpness", 0.0, 3.0, 1.0)
 contrast_slider, update_contrast_label   = create_slider_row(adjustment_frame, "Contrast", 0.0, 3.0, 1.0)
 saturation_slider, update_saturation_label = create_slider_row(adjustment_frame, "Saturation", 0.0, 3.0, 1.0)
