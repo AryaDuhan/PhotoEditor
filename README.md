@@ -75,8 +75,8 @@ It features real-time image adjustments like **brightness**, **sharpness**, **co
 ## 📦 Installation
 
 ```bash
-git clone [https://github.com/your-username/photo-editor.git](https://github.com/your-username/photo-editor.git)
-cd photo-editor
+git clone https://github.com/AryaDuhan/PhotoEditor.git
+cd PhotoEditor
 pip install -r requirements.txt
 # or individually:
 pip install customtkinter pillow numpy opencv-python
