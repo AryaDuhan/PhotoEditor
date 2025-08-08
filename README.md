@@ -12,10 +12,10 @@ It features real-time image adjustments like **brightness**, **sharpness**, **co
   </tr>
   <tr>
     <td>
-      <img src=""screenshots\Screenshot 2025-08-08 145727.png"" alt="Photo editor initial screen" width="450px">
+      <img src="screenshots/Screenshot 2025-08-08 145727.png" alt="Photo editor initial screen" width="450px">
     </td>
     <td>
-      <img src=""screenshots\Screenshot 2025-08-08 145744.png"" alt="Photo editor with a loaded and edited image" width="450px">
+      <img src="screenshots/Screenshot 2025-08-08 145744.png" alt="Photo editor with a loaded and edited image" width="450px">
     </td>
   </tr>
 </table>
