@@ -1,7 +1,24 @@
 # 🖼️ Simple Photo Editor (Python + CustomTkinter)
 
-A lightweight yet powerful **desktop photo editor** built with Python’s `Tkinter`, `CustomTkinter`, `Pillow`, and `OpenCV`.  
+A lightweight yet powerful **desktop photo editor** built with Python’s `Tkinter`, `CustomTkinter`, `Pillow`, and `OpenCV`.
 It features real-time image adjustments like **brightness**, **sharpness**, **contrast**, **saturation**, and **temperature**, plus **blur**, **grayscale**, **undo/redo**, and more — all packed into a clean, user-friendly interface.
+
+<br>
+
+<table align="center">
+  <tr>
+    <td align="center"><b>Initial View</b></td>
+    <td align="center"><b>Editing an Image</b></td>
+  </tr>
+  <tr>
+    <td>
+      <img src=""screenshots\Screenshot 2025-08-08 145727.png"" alt="Photo editor initial screen" width="450px">
+    </td>
+    <td>
+      <img src=""screenshots\Screenshot 2025-08-08 145744.png"" alt="Photo editor with a loaded and edited image" width="450px">
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -58,7 +75,7 @@ It features real-time image adjustments like **brightness**, **sharpness**, **co
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/your-username/photo-editor.git
+git clone [https://github.com/your-username/photo-editor.git](https://github.com/your-username/photo-editor.git)
 cd photo-editor
 pip install -r requirements.txt
 # or individually:
